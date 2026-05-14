@@ -190,20 +190,29 @@
     }
 
     .engine-pages {
-      width: 36px; padding: 4px 6px; background: none; border: none;
+      width: 28px; padding: 0; background: none; border: none;
       color: var(--text); font-size: 0.8rem; text-align: center;
-      outline: none; cursor: text;
+      outline: none; cursor: text; font-variant-numeric: tabular-nums;
     }
-    .engine-card:not(.active) .engine-pages { color: var(--muted); opacity: 0.35; pointer-events: none; }
     .engine-pages::-webkit-inner-spin-button,
     .engine-pages::-webkit-outer-spin-button { -webkit-appearance: none; }
     .engine-pages { -moz-appearance: textfield; }
 
-    .pages-suffix {
-      padding-right: 10px; font-size: 0.7rem; color: var(--muted);
-      white-space: nowrap;
+    .page-stepper {
+      display: flex; align-items: center; gap: 1px; padding: 0 6px 0 2px;
     }
-    .engine-card:not(.active) .pages-suffix { opacity: 0.35; }
+    .engine-card:not(.active) .page-stepper { opacity: 0.35; pointer-events: none; }
+
+    .page-stepper-btn {
+      width: 20px; height: 20px; flex-shrink: 0;
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 0.95rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; transition: background 0.12s, color 0.12s;
+      line-height: 1; user-select: none;
+    }
+    .engine-card.active .page-stepper-btn { color: #a78bfa; }
+    .page-stepper-btn:hover { background: rgba(167,139,250,0.15); color: #c4b5fd; }
     .engine-toggle {
       font-size: 0.75rem; font-weight: 500; padding: 4px 14px;
       border-radius: 20px; border: 1px solid var(--border);
@@ -361,8 +370,11 @@
             <span>{{ engine }}</span>
           </button>
           <span class="engine-divider"></span>
-          <input class="engine-pages" type="number" value="2" min="1" max="10" title="Pages for {{ engine }}" />
-          <span class="pages-suffix">pg</span>
+          <div class="page-stepper">
+            <button class="page-stepper-btn" onclick="stepPage(this, -1)" tabindex="-1">&#8722;</button>
+            <input class="engine-pages" type="number" value="2" min="1" max="10" title="Pages for {{ engine }}" />
+            <button class="page-stepper-btn" onclick="stepPage(this, 1)" tabindex="-1">+</button>
+          </div>
         </div>
         {% endfor %}
       </div>
@@ -452,6 +464,11 @@
     if (card.classList.contains("active") && active.length === 1) return;
     card.classList.toggle("active");
     card.querySelector(".engine-pages").disabled = !card.classList.contains("active");
+  }
+
+  function stepPage(btn, delta) {
+    const input = btn.closest(".engine-card").querySelector(".engine-pages");
+    input.value = Math.max(1, Math.min(10, (parseInt(input.value) || 2) + delta));
   }
 
   function enginePages() {
