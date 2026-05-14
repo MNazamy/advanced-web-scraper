@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Advanced Web Scraper</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #07070f;
+      --surface:     rgba(255,255,255,0.04);
+      --border:      rgba(255,255,255,0.08);
+      --accent-a:    #7c3aed;
+      --accent-b:    #2563eb;
+      --text:        #e2e8f0;
+      --muted:       #64748b;
+      --card-hover:  rgba(255,255,255,0.06);
+      --freq-bg:     rgba(124,58,237,0.18);
+      --freq-border: rgba(124,58,237,0.45);
+    }
+
+    html, body { min-height: 100%; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px; line-height: 1.6; }
+
+    body::before, body::after {
+      content: ""; position: fixed; border-radius: 50%;
+      filter: blur(120px); pointer-events: none; z-index: 0;
+    }
+    body::before {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(124,58,237,0.15), transparent 70%);
+      top: -150px; left: -150px;
+    }
+    body::after {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(37,99,235,0.12), transparent 70%);
+      bottom: -100px; right: -100px;
+    }
+
+    #app {
+      position: relative; z-index: 1;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh; padding: 0 16px 80px;
+    }
+
+    /* ── hero ── */
+    #hero {
+      display: flex; flex-direction: column; align-items: center;
+      padding-top: 14vh; transition: padding-top 0.5s ease;
+    }
+    #hero.has-results { padding-top: 40px; }
+
+    .logo {
+      font-size: 2.4rem; font-weight: 800; letter-spacing: -1px;
+      background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 6px;
+    }
+    .tagline {
+      font-size: 0.82rem; color: var(--muted);
+      letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 32px;
+    }
+
+    /* ── search bar ── */
+    .search-wrap { width: 100%; max-width: 680px; }
+
+    .search-box {
+      display: flex; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 50px; padding: 6px 6px 6px 22px;
+      backdrop-filter: blur(16px);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .search-box:focus-within {
+      border-color: rgba(124,58,237,0.5);
+      box-shadow: 0 0 0 3px rgba(124,58,237,0.12), 0 8px 40px rgba(0,0,0,0.4);
+    }
+    #search-input {
+      flex: 1; background: none; border: none; outline: none;
+      color: var(--text); font-size: 1rem; caret-color: #a78bfa;
+    }
+    #search-input::placeholder { color: var(--muted); }
+
+    .btn-search {
+      background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+      color: #fff; border: none; border-radius: 40px;
+      padding: 10px 26px; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .btn-search:hover:not(:disabled) { opacity: 0.88; transform: scale(1.02); }
+    .btn-search:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── engine toggles ── */
+    .engine-row {
+      display: flex; gap: 8px; margin-top: 14px;
+      flex-wrap: wrap; justify-content: center;
+    }
+    .engine-toggle {
+      font-size: 0.75rem; font-weight: 500; padding: 4px 14px;
+      border-radius: 20px; border: 1px solid var(--border);
+      color: var(--muted); background: transparent;
+      cursor: pointer; letter-spacing: 0.04em; text-transform: uppercase;
+      transition: all 0.15s; user-select: none;
+    }
+    .engine-toggle.active {
+      border-color: rgba(124,58,237,0.6); color: #c4b5fd;
+      background: rgba(124,58,237,0.12);
+    }
+    .engine-toggle:hover:not(.active) { border-color: var(--muted); color: var(--text); }
+
+    /* ── progress panel ── */
+    #progress-panel {
+      display: none; flex-direction: column; align-items: flex-start;
+      gap: 0; margin-top: 32px; width: 100%; max-width: 360px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px 24px;
+      backdrop-filter: blur(12px);
+    }
+    #progress-panel.visible { display: flex; }
+
+    .progress-title {
+      font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted); margin-bottom: 14px; font-weight: 600;
+    }
+
+    .step-row {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; padding: 5px 0;
+    }
+    .step-row.substep { padding: 3px 0 3px 22px; }
+
+    .step-icon {
+      width: 18px; height: 18px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-icon.pending::before {
+      content: ""; display: block; width: 8px; height: 8px;
+      border-radius: 50%; border: 2px solid var(--muted);
+    }
+    .step-icon.running::before {
+      content: ""; display: block; width: 12px; height: 12px;
+      border-radius: 50%; border: 2px solid var(--border);
+      border-top-color: #a78bfa; animation: spin 0.7s linear infinite;
+    }
+    .step-icon.done::before {
+      content: "✓"; font-size: 11px; font-weight: 700; color: #34d399;
+    }
+    .step-icon.error::before {
+      content: "✗"; font-size: 11px; font-weight: 700; color: #f87171;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .step-label { font-size: 0.88rem; color: var(--text); text-transform: capitalize; }
+    .step-label.substep { font-size: 0.78rem; color: var(--muted); text-transform: none; }
+    .step-label.running { color: #c4b5fd; }
+    .step-label.done    { color: var(--muted); }
+
+    .engine-header {
+      width: 100%; display: flex; align-items: center; gap: 10px;
+      padding: 6px 0 2px; margin-top: 4px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .engine-header:first-of-type { border-top: none; margin-top: 0; }
+
+    /* ── results ── */
+    #results-area { width: 100%; max-width: 760px; margin-top: 36px; }
+
+    .results-header {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 10px;
+    }
+    .results-label { font-size: 0.95rem; font-weight: 600; color: var(--text); }
+    .results-count { font-size: 0.8rem; color: var(--muted); }
+
+    .result-card {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 14px 16px; border-radius: 12px; border: 1px solid transparent;
+      transition: background 0.15s, border-color 0.15s;
+      animation: fadeUp 0.3s ease both;
+    }
+    .result-card:hover { background: var(--card-hover); border-color: var(--border); }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .rank {
+      min-width: 28px; text-align: right; font-size: 0.78rem;
+      color: var(--muted); padding-top: 3px; font-variant-numeric: tabular-nums;
+    }
+    .result-body { flex: 1; min-width: 0; }
+    .result-title {
+      font-size: 0.95rem; font-weight: 600; color: #c4b5fd;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;
+    }
+    .result-url {
+      display: block; font-size: 0.78rem; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      text-decoration: none;
+    }
+    .result-url:hover { color: #a78bfa; text-decoration: underline; }
+    a.result-title-link { text-decoration: none; color: inherit; }
+    a.result-title-link:hover .result-title { color: #e9d5ff; }
+
+    .freq-badge {
+      flex-shrink: 0; font-size: 0.72rem; font-weight: 700;
+      padding: 3px 10px; border-radius: 20px;
+      background: var(--freq-bg); border: 1px solid var(--freq-border);
+      color: #c4b5fd; font-variant-numeric: tabular-nums; white-space: nowrap;
+    }
+
+    .error-msg { color: #f87171; font-size: 0.85rem; text-align: center; margin-top: 20px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="hero">
+    <div class="logo">Advanced Web Scraper</div>
+    <div class="tagline">Multi-engine · Frequency-ranked · Real results</div>
+
+    <div class="search-wrap">
+      <div class="search-box">
+        <input id="search-input" type="text" placeholder="Search anything…" autocomplete="off" />
+        <button class="btn-search" id="btn-search" onclick="startSearch()">Search</button>
+      </div>
+
+      <div class="engine-row" id="engine-row">
+        {% for engine in engines %}
+        <button class="engine-toggle active" data-engine="{{ engine }}" onclick="toggleEngine(this)">
+          {{ engine }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div id="progress-panel">
+      <div class="progress-title">Pipeline progress</div>
+      <div id="steps-list"></div>
+    </div>
+  </div>
+
+  <div id="results-area"></div>
+</div>
+
+<script>
+  let _pollInterval = null;
+
+  const SUBSTEP_LABELS = {
+    scraping:  "Scraping",
+    ocr:       "OCR cross-check",
+    filter:    "Filter & deduplicate",
+    frequency: "Frequency analysis",
+    store:     "Store to database",
+  };
+
+  document.getElementById("search-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") startSearch();
+  });
+
+  function toggleEngine(btn) {
+    const active = document.querySelectorAll(".engine-toggle.active");
+    if (btn.classList.contains("active") && active.length === 1) return;
+    btn.classList.toggle("active");
+  }
+
+  function selectedEngines() {
+    return [...document.querySelectorAll(".engine-toggle.active")].map(b => b.dataset.engine);
+  }
+
+  async function startSearch() {
+    const term = document.getElementById("search-input").value.trim();
+    if (!term) return;
+
+    const engines = selectedEngines();
+    setLoading(true, engines);
+    clearResults();
+
+    try {
+      const res = await fetch("/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ term, engines }),
+      });
+      const data = await res.json();
+      if (data.error) { showError(data.error); setLoading(false, []); return; }
+      pollStatus(data.job_id);
+    } catch (err) {
+      showError("Failed to start search: " + err.message);
+      setLoading(false, []);
+    }
+  }
+
+  function pollStatus(jobId) {
+    _pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch("/status/" + jobId);
+        const job = await res.json();
+
+        if (job.steps) renderSteps(job.steps);
+
+        if (job.status === "done") {
+          clearInterval(_pollInterval);
+          setTimeout(() => { setLoading(false, []); fetchResults(job.batch_id); }, 900);
+        } else if (job.status === "error") {
+          clearInterval(_pollInterval);
+          setLoading(false, []);
+          showError("Pipeline error: " + job.error);
+        }
+      } catch (e) { /* network blip */ }
+    }, 2000);
+  }
+
+  function renderSteps(steps) {
+    const list = document.getElementById("steps-list");
+    list.innerHTML = "";
+
+    steps.forEach(step => {
+      if (step.substeps) {
+        // engine group header
+        const header = document.createElement("div");
+        header.className = "engine-header";
+        header.innerHTML = `<span class="step-icon ${step.status}"></span>
+                            <span class="step-label ${step.status}">${step.label}</span>`;
+        list.appendChild(header);
+
+        step.substeps.forEach(sub => {
+          const row = document.createElement("div");
+          row.className = "step-row substep";
+          row.innerHTML = `<span class="step-icon ${sub.status}"></span>
+                           <span class="step-label substep ${sub.status}">${sub.label}</span>`;
+          list.appendChild(row);
+        });
+      } else {
+        // flat step (sanitize)
+        const row = document.createElement("div");
+        row.className = "step-row";
+        row.innerHTML = `<span class="step-icon ${step.status}"></span>
+                         <span class="step-label ${step.status}">${step.label}</span>`;
+        list.appendChild(row);
+      }
+    });
+  }
+
+  function setLoading(on, engines) {
+    document.getElementById("btn-search").disabled = on;
+    const panel = document.getElementById("progress-panel");
+    if (on) {
+      // render initial pending state immediately — will be updated on first poll
+      const initialSteps = [{ id: "sanitize", label: "Sanitize query", status: "pending" }];
+      engines.forEach(e => {
+        initialSteps.push({
+          id: e, label: e.charAt(0).toUpperCase() + e.slice(1), status: "pending",
+          substeps: Object.entries(SUBSTEP_LABELS).map(([id, label]) => ({ id, label, status: "pending" })),
+        });
+      });
+      renderSteps(initialSteps);
+      panel.classList.add("visible");
+    } else {
+      panel.classList.remove("visible");
+    }
+  }
+
+  async function fetchResults(batchId) {
+    try {
+      const res = await fetch("/results/" + batchId);
+      renderResults(await res.json());
+    } catch (err) {
+      showError("Failed to load results: " + err.message);
+    }
+  }
+
+  function renderResults(results) {
+    document.getElementById("hero").classList.add("has-results");
+    const area = document.getElementById("results-area");
+
+    if (!results.length) {
+      area.innerHTML = '<p class="error-msg">No results found.</p>';
+      return;
+    }
+
+    let html = `
+      <div class="results-header">
+        <span class="results-label">Results</span>
+        <span class="results-count">${results.length} URLs · ranked by frequency</span>
+      </div>`;
+
+    results.forEach((r, i) => {
+      const title = r.title || extractDomain(r.url);
+      const delay = Math.min(i * 15, 500);
+      html += `
+        <div class="result-card" style="animation-delay:${delay}ms">
+          <span class="rank">${i + 1}</span>
+          <div class="result-body">
+            <a class="result-title-link" href="${escHtml(r.url)}" target="_blank" rel="noopener">
+              <div class="result-title">${escHtml(title)}</div>
+            </a>
+            <a class="result-url" href="${escHtml(r.url)}" target="_blank" rel="noopener">${escHtml(r.url)}</a>
+          </div>
+          <span class="freq-badge">&#8679; ${r.total_freq}</span>
+        </div>`;
+    });
+
+    area.innerHTML = html;
+  }
+
+  function clearResults() {
+    document.getElementById("results-area").innerHTML = "";
+    document.getElementById("hero").classList.remove("has-results");
+  }
+
+  function showError(msg) {
+    document.getElementById("results-area").innerHTML = `<p class="error-msg">${escHtml(msg)}</p>`;
+  }
+
+  function extractDomain(url) {
+    try { return new URL(url).hostname; } catch { return url; }
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+</script>
+</body>
+</html>

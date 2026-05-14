@@ -14,39 +14,64 @@ from search import search
 
 _SCREENSHOT_DIR = Path(__file__).parent.parent / "screenshots"
 
-if __name__ == "__main__":
-    term = PREDEFINED_SEARCHES[0]
+
+def run_pipeline(term: str, engines=None, on_step=None) -> int:
+    """
+    on_step(engine, substep, status) — engine is None for global steps,
+    substep is None for engine-level status changes.
+    """
+    if engines is None:
+        engines = SEARCH_ENGINES
+
+    def _s(engine, substep, status):
+        if on_step:
+            on_step(engine, substep, status)
+
+    _s(None, "sanitize", "running")
     sanitized_term = sanitize_query(term)
     print(f"Query     : {term}")
     print(f"Sanitized : {sanitized_term}\n")
+    _s(None, "sanitize", "done")
 
     batch_id = start_batch_run()
 
-    for engine in SEARCH_ENGINES:
+    for engine in engines:
+        _s(engine, None, "running")
 
+        _s(engine, "scraping", "running")
         run_id = start_run(sanitized_term, engine, batch_id)
-
-        # --- Extract (Selenium) ---
         results = search(sanitized_term, engine, run_id)
         print(f"\n[{engine}] {len(results)} raw results")
+        _s(engine, "scraping", "done")
 
-        # --- Extract (OCR cross-check) ---
+        _s(engine, "ocr", "running")
         screenshot_path = str(_SCREENSHOT_DIR / f"run_id_{run_id}.png")
         ocr_urls = extract_urls_from_screenshot(screenshot_path)
         if ocr_urls:
             print(f"[{engine}] OCR found {len(ocr_urls)} URLs — merging")
             ocr_results = [{"url": u, "title": ""} for u in ocr_urls]
             results = results + ocr_results
+        _s(engine, "ocr", "done")
 
-        # --- Transform ---
+        _s(engine, "filter", "running")
         clean_results = dedupe_and_filter_ads(results)
+        _s(engine, "filter", "done")
 
-        # --- Load ---
-        insert_results(run_id, clean_results)
-
+        _s(engine, "frequency", "running")
         freq_data = analyze(sanitized_term, clean_results)
-        insert_frequencies(run_id, freq_data)
+        _s(engine, "frequency", "done")
 
+        _s(engine, "store", "running")
+        insert_results(run_id, clean_results)
+        insert_frequencies(run_id, freq_data)
         complete_run(run_id)
+        _s(engine, "store", "done")
+
+        _s(engine, None, "done")
 
     complete_batch_run(batch_id)
+    return batch_id
+
+
+if __name__ == "__main__":
+    run_pipeline(PREDEFINED_SEARCHES[0])
