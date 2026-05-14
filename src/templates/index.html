@@ -190,20 +190,29 @@
     }
 
     .engine-pages {
-      width: 36px; padding: 4px 6px; background: none; border: none;
+      width: 28px; padding: 0; background: none; border: none;
       color: var(--text); font-size: 0.8rem; text-align: center;
-      outline: none; cursor: text;
+      outline: none; cursor: text; font-variant-numeric: tabular-nums;
     }
-    .engine-card:not(.active) .engine-pages { color: var(--muted); opacity: 0.35; pointer-events: none; }
     .engine-pages::-webkit-inner-spin-button,
     .engine-pages::-webkit-outer-spin-button { -webkit-appearance: none; }
     .engine-pages { -moz-appearance: textfield; }
 
-    .pages-suffix {
-      padding-right: 10px; font-size: 0.7rem; color: var(--muted);
-      white-space: nowrap;
+    .page-stepper {
+      display: flex; align-items: center; gap: 1px; padding: 0 6px 0 2px;
     }
-    .engine-card:not(.active) .pages-suffix { opacity: 0.35; }
+    .engine-card:not(.active) .page-stepper { opacity: 0.35; pointer-events: none; }
+
+    .page-stepper-btn {
+      width: 20px; height: 20px; flex-shrink: 0;
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 0.95rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; transition: background 0.12s, color 0.12s;
+      line-height: 1; user-select: none;
+    }
+    .engine-card.active .page-stepper-btn { color: #a78bfa; }
+    .page-stepper-btn:hover { background: rgba(167,139,250,0.15); color: #c4b5fd; }
     .engine-toggle {
       font-size: 0.75rem; font-weight: 500; padding: 4px 14px;
       border-radius: 20px; border: 1px solid var(--border);
@@ -220,7 +229,7 @@
     /* ── progress panel ── */
     #progress-panel {
       display: none; flex-direction: column; align-items: flex-start;
-      gap: 0; margin-top: 32px; width: 100%; max-width: 360px;
+      margin-top: 32px; width: min(920px, 95vw);
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 14px; padding: 20px 24px;
       backdrop-filter: blur(12px);
@@ -229,48 +238,59 @@
 
     .progress-title {
       font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
-      color: var(--muted); margin-bottom: 14px; font-weight: 600;
+      color: var(--muted); margin-bottom: 16px; font-weight: 600;
     }
 
-    .step-row {
-      display: flex; align-items: center; gap: 10px;
-      width: 100%; padding: 5px 0;
+    #steps-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0 20px; width: 100%;
     }
-    .step-row.substep { padding: 3px 0 3px 22px; }
 
+    /* ── engine column ── */
+    .engine-col { display: flex; flex-direction: column; }
+
+    .engine-col-header {
+      display: flex; align-items: center; gap: 8px;
+      padding-bottom: 8px; margin-bottom: 6px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .engine-substep {
+      display: flex; align-items: center; gap: 7px; padding: 3px 0;
+    }
+
+    /* ── icons ── */
     .step-icon {
-      width: 18px; height: 18px; flex-shrink: 0;
+      width: 16px; height: 16px; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
     }
     .step-icon.pending::before {
-      content: ""; display: block; width: 8px; height: 8px;
+      content: ""; display: block; width: 7px; height: 7px;
       border-radius: 50%; border: 2px solid var(--muted);
     }
     .step-icon.running::before {
-      content: ""; display: block; width: 12px; height: 12px;
+      content: ""; display: block; width: 11px; height: 11px;
       border-radius: 50%; border: 2px solid var(--border);
       border-top-color: #a78bfa; animation: spin 0.7s linear infinite;
     }
-    .step-icon.done::before {
-      content: "✓"; font-size: 11px; font-weight: 700; color: #34d399;
-    }
-    .step-icon.error::before {
-      content: "✗"; font-size: 11px; font-weight: 700; color: #f87171;
-    }
+    .step-icon.done::before   { content: "✓"; font-size: 10px; font-weight: 700; color: #34d399; }
+    .step-icon.error::before  { content: "✗"; font-size: 10px; font-weight: 700; color: #f87171; }
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ── labels ── */
     .step-label { font-size: 0.88rem; color: var(--text); text-transform: capitalize; }
-    .step-label.substep { font-size: 0.78rem; color: var(--muted); text-transform: none; }
+    .step-label.sub { font-size: 0.75rem; color: var(--muted); text-transform: none; }
     .step-label.running { color: #c4b5fd; }
     .step-label.done    { color: var(--muted); }
+    .step-label.error   { color: #f87171; }
 
-    .engine-header {
-      width: 100%; display: flex; align-items: center; gap: 10px;
-      padding: 6px 0 2px; margin-top: 4px;
-      border-top: 1px solid rgba(255,255,255,0.05);
+    .step-detail {
+      margin-left: auto; font-size: 0.65rem; color: var(--muted);
+      font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 4px;
     }
-    .engine-header:first-of-type { border-top: none; margin-top: 0; }
+    .step-detail.error { color: #f87171; }
 
     /* ── results ── */
     #results-area { width: 100%; max-width: 760px; margin-top: 36px; }
@@ -361,8 +381,11 @@
             <span>{{ engine }}</span>
           </button>
           <span class="engine-divider"></span>
-          <input class="engine-pages" type="number" value="2" min="1" max="10" title="Pages for {{ engine }}" />
-          <span class="pages-suffix">pg</span>
+          <div class="page-stepper">
+            <button class="page-stepper-btn" onclick="stepPage(this, -1)" tabindex="-1">&#8722;</button>
+            <input class="engine-pages" type="number" value="2" min="1" max="10" title="Pages for {{ engine }}" />
+            <button class="page-stepper-btn" onclick="stepPage(this, 1)" tabindex="-1">+</button>
+          </div>
         </div>
         {% endfor %}
       </div>
@@ -454,6 +477,11 @@
     card.querySelector(".engine-pages").disabled = !card.classList.contains("active");
   }
 
+  function stepPage(btn, delta) {
+    const input = btn.closest(".engine-card").querySelector(".engine-pages");
+    input.value = Math.max(1, Math.min(10, (parseInt(input.value) || 2) + delta));
+  }
+
   function enginePages() {
     const result = {};
     document.querySelectorAll(".engine-card.active").forEach(card => {
@@ -522,26 +550,31 @@
 
     steps.forEach(step => {
       if (step.substeps) {
-        // engine group header
-        const header = document.createElement("div");
-        header.className = "engine-header";
-        header.innerHTML = `<span class="step-icon ${step.status}"></span>
-                            <span class="step-label ${step.status}">${step.label}</span>`;
-        list.appendChild(header);
+        const col = document.createElement("div");
+        col.className = "engine-col";
+
+        let html = `<div class="engine-col-header">
+                      <span class="step-icon ${step.status}"></span>
+                      <span class="step-label ${step.status}">${step.label}</span>
+                    </div>`;
 
         step.substeps.forEach(sub => {
-          const row = document.createElement("div");
-          row.className = "step-row substep";
-          row.innerHTML = `<span class="step-icon ${sub.status}"></span>
-                           <span class="step-label substep ${sub.status}">${sub.label}</span>`;
-          list.appendChild(row);
+          html += `<div class="engine-substep">
+                     <span class="step-icon ${sub.status}"></span>
+                     <span class="step-label sub ${sub.status}">${sub.label}</span>
+                     ${sub.detail ? `<span class="step-detail ${sub.status}">${escHtml(sub.detail)}</span>` : ""}
+                   </div>`;
         });
+
+        col.innerHTML = html;
+        list.appendChild(col);
       } else {
-        // flat step (sanitize)
+        // flat step (e.g. a future global step)
         const row = document.createElement("div");
-        row.className = "step-row";
+        row.style.gridColumn = "1 / -1";
         row.innerHTML = `<span class="step-icon ${step.status}"></span>
-                         <span class="step-label ${step.status}">${step.label}</span>`;
+                         <span class="step-label ${step.status}">${step.label}</span>
+                         ${step.detail ? `<span class="step-detail ${step.status}">${escHtml(step.detail)}</span>` : ""}`;
         list.appendChild(row);
       }
     });
@@ -552,13 +585,10 @@
     const panel = document.getElementById("progress-panel");
     if (on) {
       // render initial pending state immediately — will be updated on first poll
-      const initialSteps = [{ id: "sanitize", label: "Sanitize query", status: "pending" }];
-      engines.forEach(e => {
-        initialSteps.push({
-          id: e, label: e.charAt(0).toUpperCase() + e.slice(1), status: "pending",
-          substeps: Object.entries(SUBSTEP_LABELS).map(([id, label]) => ({ id, label, status: "pending" })),
-        });
-      });
+      const initialSteps = engines.map(e => ({
+        id: e, label: e.charAt(0).toUpperCase() + e.slice(1), status: "pending",
+        substeps: Object.entries(SUBSTEP_LABELS).map(([id, label]) => ({ id, label, status: "pending", detail: null })),
+      }));
       renderSteps(initialSteps);
       panel.classList.add("visible");
     } else {

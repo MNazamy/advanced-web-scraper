@@ -1,10 +1,11 @@
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from utils.constants import PREDEFINED_SEARCHES, SEARCH_ENGINES
 from utils.sanitize_utils import sanitize_query
 from utils.ocr_utils import extract_urls_from_screenshot
 from utils.frequency_analyzer import analyze
-from utils.search_filter_utils import dedupe_and_filter_ads
+from utils.search_filter_utils import filter_ads, deduplicate
 from utils.db_utils import (
     start_batch_run, complete_batch_run,
     start_run, complete_run,
@@ -18,33 +19,32 @@ _SCREENSHOT_DIR = Path(__file__).parent.parent / "screenshots"
 
 def run_pipeline(term: str, engines=None, pages=2, topic_id=None, on_step=None) -> int:
     """
-    on_step(engine, substep, status) — engine is None for global steps,
+    on_step(engine, substep, status, detail) — engine is None for global steps,
     substep is None for engine-level status changes.
+    All engines run concurrently via ThreadPoolExecutor.
     """
     if engines is None:
         engines = SEARCH_ENGINES
 
-    def _s(engine, substep, status):
+    def _s(engine, substep, status, detail=None):
         if on_step:
-            on_step(engine, substep, status)
+            on_step(engine, substep, status, detail)
 
-    _s(None, "sanitize", "running")
     sanitized_term = sanitize_query(term)
     print(f"Query     : {term}")
     print(f"Sanitized : {sanitized_term}\n")
-    _s(None, "sanitize", "done")
 
     batch_id = start_batch_run(topic_id=topic_id)
 
-    for engine in engines:
+    def _run_engine(engine):
         engine_pages = pages[engine] if isinstance(pages, dict) else pages
         _s(engine, None, "running")
 
         _s(engine, "scraping", "running")
-        run_id = start_run(sanitized_term, engine, batch_id)
-        results = search(sanitized_term, engine, run_id, pages=engine_pages)
+        run_id = start_run(term, engine, batch_id)
+        results = search(term, engine, run_id, pages=engine_pages)
         print(f"\n[{engine}] {len(results)} raw results across {engine_pages} page(s)")
-        _s(engine, "scraping", "done")
+        _s(engine, "scraping", "done", f"{len(results)} found")
 
         _s(engine, "ocr", "running")
         ocr_results = []
@@ -58,23 +58,37 @@ def run_pipeline(term: str, engines=None, pages=2, topic_id=None, on_step=None) 
         if ocr_results:
             print(f"[{engine}] OCR total: {len(ocr_results)} URLs — merging")
             results = results + ocr_results
-        _s(engine, "ocr", "done")
+        _s(engine, "ocr", "done", f"{len(ocr_results)} merged" if ocr_results else "none found")
 
         _s(engine, "filter", "running")
-        clean_results = dedupe_and_filter_ads(results)
-        _s(engine, "filter", "done")
+        after_ads = filter_ads(results)
+        ads_dropped = len(results) - len(after_ads)
+        clean_results = deduplicate(after_ads)
+        dupes_dropped = len(after_ads) - len(clean_results)
+        _s(engine, "filter", "done", f"{ads_dropped} ads removed · {dupes_dropped} dupes dropped")
 
         _s(engine, "frequency", "running")
         freq_data = analyze(sanitized_term, clean_results)
-        _s(engine, "frequency", "done")
+        matched = len({r["result_id"] for r in freq_data})
+        _s(engine, "frequency", "done", f"{matched} URLs matched")
 
         _s(engine, "store", "running")
         insert_results(run_id, clean_results)
         insert_frequencies(run_id, freq_data)
         complete_run(run_id)
-        _s(engine, "store", "done")
+        _s(engine, "store", "done", f"{len(clean_results)} stored")
 
         _s(engine, None, "done")
+
+    with ThreadPoolExecutor(max_workers=len(engines)) as executor:
+        futures = {executor.submit(_run_engine, engine): engine for engine in engines}
+        for future in as_completed(futures):
+            engine = futures[future]
+            try:
+                future.result()
+            except Exception as e:
+                print(f"[{engine}] PIPELINE ERROR: {e}")
+                _s(engine, None, "error", str(e))
 
     complete_batch_run(batch_id)
     return batch_id
