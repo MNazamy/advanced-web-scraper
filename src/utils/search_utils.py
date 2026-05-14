@@ -60,13 +60,20 @@ def _parse_bing(driver):
 
 
 def _parse_yahoo(driver):
-    # Target h3 > a directly — avoids relying on Yahoo's frequently-changed
-    # class names. Filtering to href^="https://" skips nav/UI anchors.
+    # The <a> wraps the <h3>, not the other way around:
+    #   div.compTitle > a[href] > h3.title > span
+    # Same ancestor-walk pattern as Google.
     results = []
-    for anchor in driver.find_elements("css selector", "h3 a[href^='https://']"):
-        href = anchor.get_attribute("href")
-        title = anchor.text.strip()
-        if title:
+    for h3 in driver.find_elements("css selector", "h3.title"):
+        title = h3.text.strip()
+        if not title:
+            continue
+        try:
+            anchor = h3.find_element("xpath", "ancestor::a[@href][1]")
+            href = anchor.get_attribute("href")
+        except Exception:
+            continue
+        if href and href.startswith("http"):
             results.append({"url": href, "title": title})
     return results
 
