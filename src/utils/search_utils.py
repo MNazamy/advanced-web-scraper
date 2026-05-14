@@ -43,7 +43,7 @@ def google_search(term: str) -> list:
         print(f"[Debug] Current URL : {driver.current_url}")
         print(f"[Debug] Page title  : {driver.title}")
 
-        driver.save_screenshot("./debug_screenshot.png")
+        driver.save_screenshot("./src/screenshots/debug_screenshot.png")
 
         # h3 tags inside #rso are Google's organic result titles; their
         # ancestor <a> carries the destination URL.
