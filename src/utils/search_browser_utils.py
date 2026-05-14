@@ -79,23 +79,34 @@ def _parse_duckduckgo(driver):
     return results
 
 
+# ---------------------------------------------------------------------------
+# Engine configurations
+# get_page_url(term, page) — term is already URL-encoded, page is 1-indexed.
+# use_scroll=True means pagination is done via JS scroll, not URL navigation.
+# ---------------------------------------------------------------------------
+
 ENGINE_CONFIGS = {
     "google": {
-        "url": "https://www.google.com/search?q={term}",
+        "get_page_url": lambda term, page: (
+            f"https://www.google.com/search?q={term}&start={(page - 1) * 10}"
+        ),
         "parser_function": _parse_google,
     },
     "bing": {
-        "url": "https://www.bing.com/search?q={term}",
+        "get_page_url": lambda term, page: (
+            f"https://www.bing.com/search?q={term}&first={(page - 1) * 10 + 1}"
+        ),
         "parser_function": _parse_bing,
     },
     "yahoo": {
-        "url": "https://search.yahoo.com/search?p={term}",
+        "get_page_url": lambda term, page: (
+            f"https://search.yahoo.com/search?p={term}&b={(page - 1) * 10 + 1}"
+        ),
         "parser_function": _parse_yahoo,
     },
     "duckduckgo": {
-        "url": "https://duckduckgo.com/?q={term}",
+        "get_page_url": lambda term, page: f"https://duckduckgo.com/?q={term}",
         "parser_function": _parse_duckduckgo,
+        "use_scroll": True,
     },
 }
-
-

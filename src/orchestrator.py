@@ -15,7 +15,7 @@ from search import search
 _SCREENSHOT_DIR = Path(__file__).parent.parent / "screenshots"
 
 
-def run_pipeline(term: str, engines=None, on_step=None) -> int:
+def run_pipeline(term: str, engines=None, pages=2, on_step=None) -> int:
     """
     on_step(engine, substep, status) — engine is None for global steps,
     substep is None for engine-level status changes.
@@ -36,20 +36,26 @@ def run_pipeline(term: str, engines=None, on_step=None) -> int:
     batch_id = start_batch_run()
 
     for engine in engines:
+        engine_pages = pages[engine] if isinstance(pages, dict) else pages
         _s(engine, None, "running")
 
         _s(engine, "scraping", "running")
         run_id = start_run(sanitized_term, engine, batch_id)
-        results = search(sanitized_term, engine, run_id)
-        print(f"\n[{engine}] {len(results)} raw results")
+        results = search(sanitized_term, engine, run_id, pages=engine_pages)
+        print(f"\n[{engine}] {len(results)} raw results across {engine_pages} page(s)")
         _s(engine, "scraping", "done")
 
         _s(engine, "ocr", "running")
-        screenshot_path = str(_SCREENSHOT_DIR / f"run_id_{run_id}.png")
-        ocr_urls = extract_urls_from_screenshot(screenshot_path)
-        if ocr_urls:
-            print(f"[{engine}] OCR found {len(ocr_urls)} URLs — merging")
-            ocr_results = [{"url": u, "title": ""} for u in ocr_urls]
+        ocr_results = []
+        for page in range(1, engine_pages + 1):
+            screenshot_path = _SCREENSHOT_DIR / f"run_id_{run_id}_p{page}.png"
+            if screenshot_path.exists():
+                ocr_urls = extract_urls_from_screenshot(str(screenshot_path))
+                if ocr_urls:
+                    print(f"[{engine}] OCR page {page}: {len(ocr_urls)} URLs")
+                    ocr_results.extend({"url": u, "title": ""} for u in ocr_urls)
+        if ocr_results:
+            print(f"[{engine}] OCR total: {len(ocr_results)} URLs — merging")
             results = results + ocr_results
         _s(engine, "ocr", "done")
 

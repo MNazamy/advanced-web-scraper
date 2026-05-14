@@ -8,7 +8,7 @@ from flask import Flask, request, jsonify, render_template
 sys.path.insert(0, str(Path(__file__).parent))
 
 from utils.db_utils import get_connection
-from utils.constants import SEARCH_ENGINES
+from utils.constants import SEARCH_ENGINES, FILLERS_AND_DISCOURSE_MARKERS
 
 app = Flask(__name__)
 
@@ -35,7 +35,7 @@ def _make_steps(engines: list) -> list:
     return steps
 
 
-def _run_job(job_id: str, term: str, engines: list):
+def _run_job(job_id: str, term: str, engines: list, pages):
     steps = _make_steps(engines)
     _jobs[job_id]["steps"] = steps
 
@@ -64,7 +64,7 @@ def _run_job(job_id: str, term: str, engines: list):
 
     try:
         from orchestrator import run_pipeline
-        batch_id = run_pipeline(term, engines=engines, on_step=on_step)
+        batch_id = run_pipeline(term, engines=engines, pages=pages, on_step=on_step)
         _jobs[job_id].update({"status": "done", "batch_id": batch_id})
     except Exception as e:
         _jobs[job_id].update({"status": "error", "error": str(e)})
@@ -72,7 +72,7 @@ def _run_job(job_id: str, term: str, engines: list):
 
 @app.route("/")
 def index():
-    return render_template("index.html", engines=SEARCH_ENGINES)
+    return render_template("index.html", engines=SEARCH_ENGINES, fillers=FILLERS_AND_DISCOURSE_MARKERS)
 
 
 @app.route("/search", methods=["POST"])
@@ -80,6 +80,12 @@ def start_search():
     body = request.json or {}
     term = body.get("term", "").strip()
     engines = body.get("engines", SEARCH_ENGINES)
+    pages_raw = body.get("pages", 2)
+    if isinstance(pages_raw, dict):
+        pages = {e: max(1, min(10, int(pages_raw.get(e, 2)))) for e in engines}
+    else:
+        n = max(1, min(10, int(pages_raw)))
+        pages = {e: n for e in engines}
 
     if not term:
         return jsonify({"error": "No search term provided"}), 400
@@ -90,7 +96,7 @@ def start_search():
 
     job_id = str(uuid.uuid4())
     _jobs[job_id] = {"status": "running", "steps": {e: "pending" for e in engines}}
-    threading.Thread(target=_run_job, args=(job_id, term, engines), daemon=True).start()
+    threading.Thread(target=_run_job, args=(job_id, term, engines, pages), daemon=True).start()
     return jsonify({"job_id": job_id})
 
 
