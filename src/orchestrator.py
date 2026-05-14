@@ -41,8 +41,8 @@ def run_pipeline(term: str, engines=None, pages=2, topic_id=None, on_step=None) 
         _s(engine, None, "running")
 
         _s(engine, "scraping", "running")
-        run_id = start_run(sanitized_term, engine, batch_id)
-        results = search(sanitized_term, engine, run_id, pages=engine_pages)
+        run_id = start_run(term, engine, batch_id)
+        results = search(term, engine, run_id, pages=engine_pages)
         print(f"\n[{engine}] {len(results)} raw results across {engine_pages} page(s)")
         _s(engine, "scraping", "done")
 
