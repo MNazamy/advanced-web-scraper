@@ -30,7 +30,7 @@ def _make_steps(engines: list) -> list:
             "id": e,
             "label": e.capitalize(),
             "status": "pending",
-            "substeps": [{"id": sid, "label": lbl, "status": "pending"} for sid, lbl in _SUBSTEP_DEFS],
+            "substeps": [{"id": sid, "label": lbl, "status": "pending", "detail": None} for sid, lbl in _SUBSTEP_DEFS],
         })
     return steps
 
@@ -46,21 +46,17 @@ def _run_job(job_id: str, term: str, engines: list, pages, topic_id):
         for e in steps if "substeps" in e
     }
 
-    def on_step(engine, substep, status):
+    def on_step(engine, substep, status, detail=None):
         if engine is None:
-            # global step (e.g. sanitize)
             node = _engine_map.get(substep)
-            if node:
-                node["status"] = status
         elif substep is None:
-            # engine-level status
             node = _engine_map.get(engine)
-            if node:
-                node["status"] = status
         else:
             node = _substep_map.get(engine, {}).get(substep)
-            if node:
-                node["status"] = status
+        if node:
+            node["status"] = status
+            if detail is not None:
+                node["detail"] = detail
 
     try:
         from orchestrator import run_pipeline

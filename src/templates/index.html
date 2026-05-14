@@ -274,6 +274,12 @@
     .step-label.running { color: #c4b5fd; }
     .step-label.done    { color: var(--muted); }
 
+    .step-detail {
+      margin-left: auto; font-size: 0.7rem; color: var(--muted);
+      font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 8px;
+    }
+    .step-detail.running { color: #a78bfa; }
+
     .engine-header {
       width: 100%; display: flex; align-items: center; gap: 10px;
       padding: 6px 0 2px; margin-top: 4px;
@@ -539,7 +545,6 @@
 
     steps.forEach(step => {
       if (step.substeps) {
-        // engine group header
         const header = document.createElement("div");
         header.className = "engine-header";
         header.innerHTML = `<span class="step-icon ${step.status}"></span>
@@ -550,15 +555,16 @@
           const row = document.createElement("div");
           row.className = "step-row substep";
           row.innerHTML = `<span class="step-icon ${sub.status}"></span>
-                           <span class="step-label substep ${sub.status}">${sub.label}</span>`;
+                           <span class="step-label substep ${sub.status}">${sub.label}</span>
+                           ${sub.detail ? `<span class="step-detail ${sub.status}">${escHtml(sub.detail)}</span>` : ""}`;
           list.appendChild(row);
         });
       } else {
-        // flat step (sanitize)
         const row = document.createElement("div");
         row.className = "step-row";
         row.innerHTML = `<span class="step-icon ${step.status}"></span>
-                         <span class="step-label ${step.status}">${step.label}</span>`;
+                         <span class="step-label ${step.status}">${step.label}</span>
+                         ${step.detail ? `<span class="step-detail ${step.status}">${escHtml(step.detail)}</span>` : ""}`;
         list.appendChild(row);
       }
     });

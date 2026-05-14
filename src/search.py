@@ -8,7 +8,7 @@ from utils.search_browser_utils import get_driver, ENGINE_CONFIGS
 # Generic search runner — shared browser lifecycle for every engine
 # ---------------------------------------------------------------------------
 
-_SCREENSHOT_DIR = Path(__file__).parent.parent / "screenshots"
+_SCREENSHOT_DIR = "./screenshots"
 
 
 def search(term: str, engine: str, run_id: int, pages: int = 2) -> list:
