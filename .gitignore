@@ -1,0 +1,5 @@
+*.pyc
+.claude
+screenshots
+src/utils/config.py
+venv/

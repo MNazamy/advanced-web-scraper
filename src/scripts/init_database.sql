@@ -17,6 +17,14 @@ INSERT INTO search_engines (search_engine_name) VALUES
     ('duckduckgo');
 
 -- -------------------------------------------------------
+-- topics  (named research areas; many batch runs per topic)
+-- -------------------------------------------------------
+CREATE TABLE topics (
+    topic_id   INT          AUTO_INCREMENT PRIMARY KEY,
+    topic_name VARCHAR(500) NOT NULL UNIQUE
+);
+
+-- -------------------------------------------------------
 -- query_terms
 -- query_id is a STORED generated column: MD5(query_term).
 -- Identical query strings always produce the same ID, so
@@ -30,12 +38,14 @@ CREATE TABLE query_terms (
 
 
 -- -------------------------------------------------------
--- search_runs  (one row per scrape execution)
+-- batch_runs  (one row per orchestrator execution)
 -- -------------------------------------------------------
 CREATE TABLE batch_runs (
     batch_id                   INT       AUTO_INCREMENT PRIMARY KEY,
+    topic_id                   INT,
     batch_start_timestamp      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    batch_completion_timestamp TIMESTAMP
+    batch_completion_timestamp TIMESTAMP,
+    FOREIGN KEY (topic_id) REFERENCES topics(topic_id)
 );
 
 -- -------------------------------------------------------

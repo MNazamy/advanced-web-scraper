@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Topics — Advanced Web Scraper</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #07070f;
+      --surface:     rgba(255,255,255,0.04);
+      --border:      rgba(255,255,255,0.08);
+      --accent-a:    #7c3aed;
+      --accent-b:    #2563eb;
+      --text:        #e2e8f0;
+      --muted:       #64748b;
+      --card-hover:  rgba(255,255,255,0.06);
+      --freq-bg:     rgba(124,58,237,0.18);
+      --freq-border: rgba(124,58,237,0.45);
+    }
+
+    html, body { min-height: 100%; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px; line-height: 1.6; }
+
+    body::before, body::after {
+      content: ""; position: fixed; border-radius: 50%;
+      filter: blur(120px); pointer-events: none; z-index: 0;
+    }
+    body::before {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(124,58,237,0.15), transparent 70%);
+      top: -150px; left: -150px;
+    }
+    body::after {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(37,99,235,0.12), transparent 70%);
+      bottom: -100px; right: -100px;
+    }
+
+    /* ── nav ── */
+    .nav {
+      position: relative; z-index: 2;
+      display: flex; justify-content: flex-end; align-items: center;
+      padding: 16px 28px; gap: 6px;
+    }
+    .nav a {
+      font-size: 0.8rem; font-weight: 500; text-decoration: none;
+      color: var(--muted); padding: 5px 14px; border-radius: 20px;
+      border: 1px solid transparent; transition: all 0.15s;
+      letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .nav a:hover { color: var(--text); border-color: var(--border); }
+    .nav a.active { color: #c4b5fd; border-color: rgba(124,58,237,0.45); background: rgba(124,58,237,0.1); }
+
+    /* ── layout ── */
+    #app {
+      position: relative; z-index: 1;
+      max-width: 860px; margin: 0 auto;
+      padding: 32px 20px 80px;
+    }
+
+    /* ── page header ── */
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 28px;
+    }
+    .page-title {
+      font-size: 1.6rem; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── new topic form ── */
+    .new-topic-form {
+      display: flex; gap: 8px; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px 20px;
+      margin-bottom: 28px; backdrop-filter: blur(12px);
+    }
+    .new-topic-form input {
+      flex: 1; background: none; border: none; outline: none;
+      color: var(--text); font-size: 0.95rem; caret-color: #a78bfa;
+    }
+    .new-topic-form input::placeholder { color: var(--muted); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+      color: #fff; border: none; border-radius: 30px;
+      padding: 8px 22px; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+
+    /* ── topics list ── */
+    .topics-empty { color: var(--muted); font-size: 0.9rem; text-align: center; margin-top: 60px; }
+
+    .topic-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; margin-bottom: 12px; overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .topic-card:hover { border-color: rgba(124,58,237,0.3); }
+
+    .topic-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; cursor: pointer; user-select: none;
+    }
+    .topic-card-header:hover .topic-name { color: #e9d5ff; }
+
+    .topic-left { display: flex; flex-direction: column; gap: 3px; }
+    .topic-name { font-size: 1rem; font-weight: 600; color: #c4b5fd; transition: color 0.15s; }
+    .topic-meta { font-size: 0.78rem; color: var(--muted); }
+
+    .topic-right { display: flex; align-items: center; gap: 10px; }
+    .batch-badge {
+      font-size: 0.72rem; font-weight: 600; padding: 3px 10px;
+      border-radius: 20px; background: var(--freq-bg);
+      border: 1px solid var(--freq-border); color: #c4b5fd; white-space: nowrap;
+    }
+    .chevron {
+      font-size: 0.75rem; color: var(--muted); transition: transform 0.2s;
+    }
+    .topic-card.open .chevron { transform: rotate(180deg); }
+
+    /* ── results panel ── */
+    .topic-results {
+      display: none; border-top: 1px solid var(--border);
+      padding: 16px 20px;
+    }
+    .topic-card.open .topic-results { display: block; }
+
+    .results-loading { color: var(--muted); font-size: 0.85rem; display: flex; align-items: center; gap: 10px; }
+    .mini-spinner {
+      width: 16px; height: 16px; border: 2px solid var(--border);
+      border-top-color: #a78bfa; border-radius: 50%;
+      animation: spin 0.7s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .result-row {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+      animation: fadeUp 0.25s ease both;
+    }
+    .result-row:last-child { border-bottom: none; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-rank { min-width: 26px; font-size: 0.75rem; color: var(--muted); padding-top: 2px; text-align: right; }
+    .result-body { flex: 1; min-width: 0; }
+    .result-title {
+      font-size: 0.88rem; font-weight: 600; color: #c4b5fd;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .result-url {
+      display: block; font-size: 0.75rem; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      text-decoration: none;
+    }
+    .result-url:hover { color: #a78bfa; text-decoration: underline; }
+    a.result-title-link { text-decoration: none; }
+    a.result-title-link:hover .result-title { color: #e9d5ff; }
+
+    .result-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+    .freq-badge {
+      font-size: 0.7rem; font-weight: 700; padding: 2px 9px;
+      border-radius: 20px; background: var(--freq-bg);
+      border: 1px solid var(--freq-border); color: #c4b5fd;
+      font-variant-numeric: tabular-nums; white-space: nowrap;
+    }
+    .batch-seen {
+      font-size: 0.68rem; color: var(--muted); white-space: nowrap;
+    }
+
+    .no-results { font-size: 0.85rem; color: var(--muted); padding: 8px 0; }
+
+    .error-msg { color: #f87171; font-size: 0.82rem; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/">Search</a>
+  <a href="/topics" class="active">Topics</a>
+</nav>
+
+<div id="app">
+  <div class="page-header">
+    <span class="page-title">Topics</span>
+  </div>
+
+  <div class="new-topic-form">
+    <input id="new-topic-input" type="text" placeholder="New topic name…" />
+    <button class="btn-primary" onclick="createTopic()">Create Topic</button>
+  </div>
+
+  <div id="topics-list"><p class="topics-empty">Loading topics…</p></div>
+</div>
+
+<script>
+  const _resultsCache = {};
+
+  async function loadTopics() {
+    try {
+      const res = await fetch("/api/topics");
+      const topics = await res.json();
+      renderTopics(topics);
+    } catch (e) {
+      document.getElementById("topics-list").innerHTML =
+        '<p class="error-msg">Failed to load topics.</p>';
+    }
+  }
+
+  function renderTopics(topics) {
+    const list = document.getElementById("topics-list");
+    if (!topics.length) {
+      list.innerHTML = '<p class="topics-empty">No topics yet. Create one above to organise your searches.</p>';
+      return;
+    }
+    list.innerHTML = topics.map(t => `
+      <div class="topic-card" id="card-${t.topic_id}">
+        <div class="topic-card-header" onclick="toggleCard(${t.topic_id})">
+          <div class="topic-left">
+            <span class="topic-name">${escHtml(t.topic_name)}</span>
+            <span class="topic-meta">${t.last_run ? "Last run " + t.last_run.slice(0, 10) : "No runs yet"}</span>
+          </div>
+          <div class="topic-right">
+            <span class="batch-badge">${t.batch_count} batch${t.batch_count !== 1 ? "es" : ""}</span>
+            <span class="chevron">&#9660;</span>
+          </div>
+        </div>
+        <div class="topic-results" id="results-${t.topic_id}">
+          <div class="results-loading"><span class="mini-spinner"></span> Loading results…</div>
+        </div>
+      </div>`).join("");
+  }
+
+  async function toggleCard(topicId) {
+    const card = document.getElementById(`card-${topicId}`);
+    const isOpen = card.classList.contains("open");
+
+    // close all others
+    document.querySelectorAll(".topic-card.open").forEach(c => c.classList.remove("open"));
+
+    if (isOpen) return; // clicking open card = just close it
+
+    card.classList.add("open");
+
+    if (_resultsCache[topicId] !== undefined) {
+      renderResults(topicId, _resultsCache[topicId]);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/topics/${topicId}/results`);
+      const rows = await res.json();
+      _resultsCache[topicId] = rows;
+      renderResults(topicId, rows);
+    } catch (e) {
+      document.getElementById(`results-${topicId}`).innerHTML =
+        '<p class="error-msg">Failed to load results.</p>';
+    }
+  }
+
+  function renderResults(topicId, rows) {
+    const panel = document.getElementById(`results-${topicId}`);
+    if (!rows.length) {
+      panel.innerHTML = '<p class="no-results">No frequency-matched results yet for this topic.</p>';
+      return;
+    }
+    panel.innerHTML = rows.map((r, i) => {
+      const title = r.title || extractDomain(r.url);
+      const delay = Math.min(i * 12, 400);
+      return `
+        <div class="result-row" style="animation-delay:${delay}ms">
+          <span class="result-rank">${i + 1}</span>
+          <div class="result-body">
+            <a class="result-title-link" href="${escHtml(r.url)}" target="_blank" rel="noopener">
+              <div class="result-title">${escHtml(title)}</div>
+            </a>
+            <a class="result-url" href="${escHtml(r.url)}" target="_blank" rel="noopener">${escHtml(r.url)}</a>
+          </div>
+          <div class="result-badges">
+            <span class="freq-badge">&#8679; ${r.total_freq}</span>
+            <span class="batch-seen">${r.seen_in_batches} batch${r.seen_in_batches !== 1 ? "es" : ""}</span>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  async function createTopic() {
+    const input = document.getElementById("new-topic-input");
+    const name = input.value.trim();
+    if (!name) return;
+    try {
+      const res = await fetch("/api/topics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) { const d = await res.json(); alert(d.error); return; }
+      input.value = "";
+      await loadTopics();
+    } catch (e) { alert("Failed to create topic"); }
+  }
+
+  document.getElementById("new-topic-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") createTopic();
+  });
+
+  function extractDomain(url) {
+    try { return new URL(url).hostname; } catch { return url; }
+  }
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  loadTopics();
+</script>
+</body>
+</html>

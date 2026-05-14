@@ -24,6 +24,57 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       font-size: 15px; line-height: 1.6; }
 
+    /* ── nav ── */
+    .nav {
+      position: relative; z-index: 2;
+      display: flex; justify-content: flex-end; align-items: center;
+      padding: 16px 28px; gap: 6px;
+    }
+    .nav a {
+      font-size: 0.8rem; font-weight: 500; text-decoration: none;
+      color: var(--muted); padding: 5px 14px; border-radius: 20px;
+      border: 1px solid transparent; transition: all 0.15s;
+      letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .nav a:hover { color: var(--text); border-color: var(--border); }
+    .nav a.active { color: #c4b5fd; border-color: rgba(124,58,237,0.45); background: rgba(124,58,237,0.1); }
+
+    /* ── topic selector ── */
+    .topic-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 20px; flex-wrap: wrap; justify-content: center;
+    }
+    .topic-label {
+      font-size: 0.75rem; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.05em; white-space: nowrap;
+    }
+    .topic-select {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; color: var(--text); font-size: 0.82rem;
+      padding: 5px 14px; outline: none; cursor: pointer;
+      transition: border-color 0.2s; min-width: 200px;
+    }
+    .topic-select:focus { border-color: rgba(124,58,237,0.5); }
+    .topic-select option { background: #13131f; }
+    .topic-new-wrap {
+      display: none; align-items: center; gap: 6px;
+    }
+    .topic-new-wrap.visible { display: flex; }
+    .topic-new-input {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; color: var(--text); font-size: 0.82rem;
+      padding: 5px 14px; outline: none; width: 180px;
+      transition: border-color 0.2s;
+    }
+    .topic-new-input:focus { border-color: rgba(124,58,237,0.5); }
+    .btn-create-topic {
+      background: none; border: 1px solid rgba(124,58,237,0.45);
+      border-radius: 20px; color: #c4b5fd; font-size: 0.78rem;
+      font-weight: 600; padding: 5px 14px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-create-topic:hover { background: rgba(124,58,237,0.12); }
+
     body::before, body::after {
       content: ""; position: fixed; border-radius: 50%;
       filter: blur(120px); pointer-events: none; z-index: 0;
@@ -93,11 +144,66 @@
     .btn-search:hover:not(:disabled) { opacity: 0.88; transform: scale(1.02); }
     .btn-search:disabled { opacity: 0.45; cursor: not-allowed; }
 
-    /* ── engine toggles ── */
+    /* ── inline input error ── */
+    .input-error {
+      min-height: 18px; margin-top: 10px;
+      font-size: 0.8rem; color: #f87171;
+      text-align: center; animation: fadeUp 0.2s ease;
+    }
+
+    /* ── engine cards ── */
     .engine-row {
       display: flex; gap: 8px; margin-top: 14px;
-      flex-wrap: wrap; justify-content: center;
+      flex-wrap: wrap; justify-content: center; align-items: center;
     }
+
+    .engine-card {
+      display: flex; align-items: center;
+      border: 1px solid var(--border); border-radius: 30px;
+      overflow: hidden; transition: border-color 0.15s, background 0.15s;
+      cursor: default;
+    }
+    .engine-card.active {
+      border-color: rgba(124,58,237,0.55);
+      background: rgba(124,58,237,0.10);
+    }
+
+    .engine-toggle-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 10px 5px 12px; background: none; border: none;
+      cursor: pointer; color: var(--muted);
+      font-size: 0.75rem; font-weight: 500;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      transition: color 0.15s;
+    }
+    .engine-card.active .engine-toggle-btn { color: #c4b5fd; }
+    .engine-card:not(.active) .engine-toggle-btn:hover { color: var(--text); }
+
+    .toggle-dot {
+      width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%;
+      background: var(--muted); transition: background 0.15s;
+    }
+    .engine-card.active .toggle-dot { background: #a78bfa; }
+
+    .engine-divider {
+      width: 1px; height: 22px; background: var(--border); flex-shrink: 0;
+    }
+
+    .engine-pages {
+      width: 36px; padding: 4px 6px; background: none; border: none;
+      color: var(--text); font-size: 0.8rem; text-align: center;
+      outline: none; cursor: text;
+    }
+    .engine-card:not(.active) .engine-pages { color: var(--muted); opacity: 0.35; pointer-events: none; }
+    .engine-pages::-webkit-inner-spin-button,
+    .engine-pages::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .engine-pages { -moz-appearance: textfield; }
+
+    .pages-suffix {
+      padding-right: 10px; font-size: 0.7rem; color: var(--muted);
+      white-space: nowrap;
+    }
+    .engine-card:not(.active) .pages-suffix { opacity: 0.35; }
     .engine-toggle {
       font-size: 0.75rem; font-weight: 500; padding: 4px 14px;
       border-radius: 20px; border: 1px solid var(--border);
@@ -217,10 +323,27 @@
   </style>
 </head>
 <body>
+<nav class="nav">
+  <a href="/" class="active">Search</a>
+  <a href="/topics">Topics</a>
+</nav>
+
 <div id="app">
   <div id="hero">
     <div class="logo">Advanced Web Scraper</div>
     <div class="tagline">Multi-engine · Frequency-ranked · Real results</div>
+
+    <div class="topic-row">
+      <span class="topic-label">Topic</span>
+      <select class="topic-select" id="topic-select" onchange="onTopicChange()">
+        <option value="">— No topic —</option>
+        <option value="__new__">+ Create new topic…</option>
+      </select>
+      <div class="topic-new-wrap" id="topic-new-wrap">
+        <input class="topic-new-input" id="topic-new-input" type="text" placeholder="Topic name…" />
+        <button class="btn-create-topic" onclick="createTopic()">Create</button>
+      </div>
+    </div>
 
     <div class="search-wrap">
       <div class="search-box">
@@ -228,11 +351,19 @@
         <button class="btn-search" id="btn-search" onclick="startSearch()">Search</button>
       </div>
 
+      <div id="input-error" class="input-error" aria-live="polite"></div>
+
       <div class="engine-row" id="engine-row">
         {% for engine in engines %}
-        <button class="engine-toggle active" data-engine="{{ engine }}" onclick="toggleEngine(this)">
-          {{ engine }}
-        </button>
+        <div class="engine-card active" data-engine="{{ engine }}">
+          <button class="engine-toggle-btn" onclick="toggleEngine(this.closest('.engine-card'))">
+            <span class="toggle-dot"></span>
+            <span>{{ engine }}</span>
+          </button>
+          <span class="engine-divider"></span>
+          <input class="engine-pages" type="number" value="2" min="1" max="10" title="Pages for {{ engine }}" />
+          <span class="pages-suffix">pg</span>
+        </div>
         {% endfor %}
       </div>
     </div>
@@ -249,6 +380,60 @@
 <script>
   let _pollInterval = null;
 
+  const FILLERS = new Set({{ fillers | tojson }});
+
+  // ── topics ──
+  async function loadTopics() {
+    try {
+      const res = await fetch("/api/topics");
+      const topics = await res.json();
+      const sel = document.getElementById("topic-select");
+      // remove old topic options (keep "no topic" + "create new")
+      [...sel.options].filter(o => o.dataset.topicId).forEach(o => o.remove());
+      topics.forEach(t => {
+        const opt = new Option(t.topic_name, t.topic_id);
+        opt.dataset.topicId = t.topic_id;
+        sel.add(opt, sel.options[1]); // insert before "create new"
+      });
+    } catch (e) { console.error("Failed to load topics", e); }
+  }
+
+  function onTopicChange() {
+    const val = document.getElementById("topic-select").value;
+    document.getElementById("topic-new-wrap").classList.toggle("visible", val === "__new__");
+  }
+
+  async function createTopic() {
+    const name = document.getElementById("topic-new-input").value.trim();
+    if (!name) return;
+    try {
+      const res = await fetch("/api/topics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) { const d = await res.json(); alert(d.error); return; }
+      const topic = await res.json();
+      await loadTopics();
+      document.getElementById("topic-select").value = topic.topic_id;
+      document.getElementById("topic-new-input").value = "";
+      document.getElementById("topic-new-wrap").classList.remove("visible");
+    } catch (e) { alert("Failed to create topic"); }
+  }
+
+  function selectedTopicId() {
+    const val = document.getElementById("topic-select").value;
+    return val && val !== "__new__" ? parseInt(val) : null;
+  }
+
+  function sanitizeQuery(term) {
+    return term.split(/\s+/).filter(w => w && !FILLERS.has(w.toLowerCase()));
+  }
+
+  function setInputError(msg) {
+    document.getElementById("input-error").textContent = msg;
+  }
+
   const SUBSTEP_LABELS = {
     scraping:  "Scraping",
     ocr:       "OCR cross-check",
@@ -260,22 +445,39 @@
   document.getElementById("search-input").addEventListener("keydown", e => {
     if (e.key === "Enter") startSearch();
   });
+  document.getElementById("search-input").addEventListener("input", () => setInputError(""));
 
-  function toggleEngine(btn) {
-    const active = document.querySelectorAll(".engine-toggle.active");
-    if (btn.classList.contains("active") && active.length === 1) return;
-    btn.classList.toggle("active");
+  function toggleEngine(card) {
+    const active = document.querySelectorAll(".engine-card.active");
+    if (card.classList.contains("active") && active.length === 1) return;
+    card.classList.toggle("active");
+    card.querySelector(".engine-pages").disabled = !card.classList.contains("active");
   }
 
-  function selectedEngines() {
-    return [...document.querySelectorAll(".engine-toggle.active")].map(b => b.dataset.engine);
+  function enginePages() {
+    const result = {};
+    document.querySelectorAll(".engine-card.active").forEach(card => {
+      result[card.dataset.engine] = Math.max(1, Math.min(10, parseInt(card.querySelector(".engine-pages").value) || 2));
+    });
+    return result;
   }
 
   async function startSearch() {
     const term = document.getElementById("search-input").value.trim();
     if (!term) return;
 
-    const engines = selectedEngines();
+    const sanitizedWords = sanitizeQuery(term);
+    if (sanitizedWords.length < 4) {
+      const kept = sanitizedWords.length;
+      setInputError(
+        `Too vague — after removing common words, only ${kept} meaningful word${kept === 1 ? "" : "s"} remain${kept === 1 ? "s" : ""}. Please add more specific terms (need at least 4).`
+      );
+      return;
+    }
+    setInputError("");
+
+    const pages = enginePages();
+    const engines = Object.keys(pages);
     setLoading(true, engines);
     clearResults();
 
@@ -283,7 +485,7 @@
       const res = await fetch("/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ term, engines }),
+        body: JSON.stringify({ term, engines, pages, topic_id: selectedTopicId() }),
       });
       const data = await res.json();
       if (data.error) { showError(data.error); setLoading(false, []); return; }
@@ -415,6 +617,8 @@
   function showError(msg) {
     document.getElementById("results-area").innerHTML = `<p class="error-msg">${escHtml(msg)}</p>`;
   }
+
+  loadTopics();
 
   function extractDomain(url) {
     try { return new URL(url).hostname; } catch { return url; }

@@ -18,16 +18,52 @@ def _md5(text: str) -> str:
     """Matches MySQL's MD5() so Python-computed IDs align with generated columns."""
     return hashlib.md5(text.encode()).hexdigest()
 
-def start_batch_run() -> int:
-    """
-    Ensure query_term and engine exist, open a search_run row, return run_id.
-    search_start_timestamp is set automatically by MySQL DEFAULT CURRENT_TIMESTAMP.
-    """
+def create_topic(name: str) -> int:
+    """Insert topic if it doesn't exist, return its topic_id."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT IGNORE INTO topics (topic_name) VALUES (%s)", (name.strip(),))
+        conn.commit()
+        cursor.execute("SELECT topic_id FROM topics WHERE topic_name = %s", (name.strip(),))
+        return cursor.fetchone()[0]
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def get_topics() -> list:
+    """Return all topics with batch run count and last run timestamp."""
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT t.topic_id, t.topic_name,
+                   COUNT(DISTINCT br.batch_id)      AS batch_count,
+                   MAX(br.batch_start_timestamp)    AS last_run
+            FROM topics t
+            LEFT JOIN batch_runs br ON br.topic_id = t.topic_id
+            GROUP BY t.topic_id
+            ORDER BY t.topic_name
+        """)
+        rows = cursor.fetchall()
+        for row in rows:
+            if row.get("last_run"):
+                row["last_run"] = str(row["last_run"])
+        return rows
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def start_batch_run(topic_id=None) -> int:
+    """Open a batch_runs row, optionally linked to a topic, return batch_id."""
     conn = get_connection()
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "INSERT INTO batch_runs (batch_start_timestamp) VALUES (NOW())"
+            "INSERT INTO batch_runs (topic_id, batch_start_timestamp) VALUES (%s, NOW())",
+            (topic_id,)
         )
         conn.commit()
         batch_id = cursor.lastrowid

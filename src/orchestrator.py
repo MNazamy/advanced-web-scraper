@@ -9,13 +9,14 @@ from utils.db_utils import (
     start_batch_run, complete_batch_run,
     start_run, complete_run,
     insert_results, insert_frequencies,
+    create_topic,
 )
 from search import search
 
 _SCREENSHOT_DIR = Path(__file__).parent.parent / "screenshots"
 
 
-def run_pipeline(term: str, engines=None, pages=2, on_step=None) -> int:
+def run_pipeline(term: str, engines=None, pages=2, topic_id=None, on_step=None) -> int:
     """
     on_step(engine, substep, status) — engine is None for global steps,
     substep is None for engine-level status changes.
@@ -33,7 +34,7 @@ def run_pipeline(term: str, engines=None, pages=2, on_step=None) -> int:
     print(f"Sanitized : {sanitized_term}\n")
     _s(None, "sanitize", "done")
 
-    batch_id = start_batch_run()
+    batch_id = start_batch_run(topic_id=topic_id)
 
     for engine in engines:
         engine_pages = pages[engine] if isinstance(pages, dict) else pages
