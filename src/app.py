@@ -7,7 +7,7 @@ from flask import Flask, request, jsonify, render_template
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from utils.db_utils import get_connection, get_topics, create_topic
+from utils.db_utils import get_topics, create_topic, get_batch_results, get_topic_results
 from utils.constants import SEARCH_ENGINES, FILLERS_AND_DISCOURSE_MARKERS
 
 app = Flask(__name__)
@@ -114,25 +114,7 @@ def job_status(job_id):
 
 @app.route("/results/<int:batch_id>")
 def get_results(batch_id):
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT sr.url, sr.title, COALESCE(SUM(tf.frequency), 0) AS total_freq
-        FROM search_runs s
-        JOIN run_results rr ON s.run_id = rr.run_id
-        JOIN search_results sr ON rr.result_id = sr.result_id
-        LEFT JOIN term_frequencies tf
-               ON tf.result_id = rr.result_id AND tf.run_id = rr.run_id
-        WHERE s.batch_id = %s
-        GROUP BY sr.result_id
-        HAVING total_freq > 0
-        ORDER BY total_freq DESC
-        LIMIT 100
-    """, (batch_id,))
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return jsonify(rows)
+    return jsonify(get_batch_results(batch_id))
 
 
 @app.route("/topics")
@@ -156,29 +138,7 @@ def api_create_topic():
 
 @app.route("/api/topics/<int:topic_id>/results")
 def topic_results(topic_id):
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT sr.url, sr.title,
-               COALESCE(SUM(tf.frequency), 0)   AS total_freq,
-               COUNT(DISTINCT br.batch_id)       AS seen_in_batches
-        FROM topics t
-        JOIN batch_runs br   ON br.topic_id   = t.topic_id
-        JOIN search_runs s   ON s.batch_id    = br.batch_id
-        JOIN run_results rr  ON rr.run_id     = s.run_id
-        JOIN search_results sr ON sr.result_id = rr.result_id
-        LEFT JOIN term_frequencies tf
-               ON tf.result_id = rr.result_id AND tf.run_id = rr.run_id
-        WHERE t.topic_id = %s
-        GROUP BY sr.result_id
-        HAVING total_freq > 0
-        ORDER BY total_freq DESC
-        LIMIT 100
-    """, (topic_id,))
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return jsonify(rows)
+    return jsonify(get_topic_results(topic_id))
 
 
 if __name__ == "__main__":
