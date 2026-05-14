@@ -1,12 +1,11 @@
-import sys
 import time
 from pathlib import Path
 from urllib.parse import quote_plus
 
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+
+_SCREENSHOT_DIR = Path(__file__).parent.parent / "screenshots"
 
 
 def _get_driver():
@@ -29,10 +28,86 @@ def _get_driver():
     return driver
 
 
+# ---------------------------------------------------------------------------
+# Per-engine result parsers
+# Each receives the live driver and returns a list of {url, title} dicts.
+# ---------------------------------------------------------------------------
+
+def _parse_google(driver):
+    results = []
+    for h3 in driver.find_elements("css selector", "#rso h3"):
+        title = h3.text.strip()
+        if not title:
+            continue
+        try:
+            anchor = h3.find_element("xpath", "ancestor::a[@href][1]")
+            href = anchor.get_attribute("href")
+        except Exception:
+            continue
+        if href and href.startswith("http"):
+            results.append({"url": href, "title": title})
+    return results
 
 
-def google_search(term: str) -> list:
-    url = f"https://www.google.com/search?q={quote_plus(term)}"
+def _parse_bing(driver):
+    results = []
+    for anchor in driver.find_elements("css selector", "li.b_algo h2 a"):
+        href = anchor.get_attribute("href")
+        title = anchor.text.strip()
+        if href and href.startswith("http") and title:
+            results.append({"url": href, "title": title})
+    return results
+
+
+def _parse_yahoo(driver):
+    # Target h3 > a directly — avoids relying on Yahoo's frequently-changed
+    # class names. Filtering to href^="https://" skips nav/UI anchors.
+    results = []
+    for anchor in driver.find_elements("css selector", "h3 a[href^='https://']"):
+        href = anchor.get_attribute("href")
+        title = anchor.text.strip()
+        if title:
+            results.append({"url": href, "title": title})
+    return results
+
+
+def _parse_duckduckgo(driver):
+    results = []
+    for anchor in driver.find_elements("css selector", "[data-testid='result'] h2 a"):
+        href = anchor.get_attribute("href")
+        title = anchor.text.strip()
+        if href and href.startswith("http") and title:
+            results.append({"url": href, "title": title})
+    return results
+
+
+ENGINE_CONFIGS = {
+    "google": {
+        "url": "https://www.google.com/search?q={term}",
+        "parser_function": _parse_google,
+    },
+    "bing": {
+        "url": "https://www.bing.com/search?q={term}",
+        "parser_function": _parse_bing,
+    },
+    "yahoo": {
+        "url": "https://search.yahoo.com/search?p={term}",
+        "parser_function": _parse_yahoo,
+    },
+    "duckduckgo": {
+        "url": "https://duckduckgo.com/?q={term}",
+        "parser_function": _parse_duckduckgo,
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# Generic search runner — shared browser lifecycle for every engine
+# ---------------------------------------------------------------------------
+
+def search(term: str, engine: str, run_id: int) -> list:
+    engine_config = ENGINE_CONFIGS[engine]
+    url = engine_config["url"].format(term=quote_plus(term))
     driver = _get_driver()
     results = []
     try:
@@ -43,33 +118,13 @@ def google_search(term: str) -> list:
         print(f"[Debug] Current URL : {driver.current_url}")
         print(f"[Debug] Page title  : {driver.title}")
 
-        driver.save_screenshot("./src/screenshots/debug_screenshot.png")
+        _SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
+        driver.save_screenshot(str(_SCREENSHOT_DIR / f"run_id_{run_id}.png"))
 
-        # h3 tags inside #rso are Google's organic result titles; their
-        # ancestor <a> carries the destination URL.
-        title_elems = driver.find_elements("css selector", "#rso h3")
-        print(f"[Debug] h3 count in #rso: {len(title_elems)}")
-
-        for h3 in title_elems:
-            title = h3.text.strip()
-            if not title:
-                continue
-            try:
-                anchor = h3.find_element("xpath", "ancestor::a[@href][1]")
-                href = anchor.get_attribute("href")
-            except Exception:
-                continue
-            if not href or not href.startswith("http"):
-                continue
-            results.append({
-                "url": href,
-                "title": title
-            })
+        results = engine_config["parser_function"](driver)
+        print(f"[Debug] {engine} returned {len(results)} results")
     except Exception as e:
-        print(e)
+        print(f"[Search ERROR] {e}")
     finally:
         driver.quit()
-
     return results
-
-

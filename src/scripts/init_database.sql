@@ -28,17 +28,30 @@ CREATE TABLE query_terms (
     PRIMARY KEY (query_id)
 );
 
+
+-- -------------------------------------------------------
+-- search_runs  (one row per scrape execution)
+-- -------------------------------------------------------
+CREATE TABLE batch_runs (
+    batch_id                   INT       AUTO_INCREMENT PRIMARY KEY,
+    batch_start_timestamp      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    batch_completion_timestamp TIMESTAMP
+);
+
 -- -------------------------------------------------------
 -- search_runs  (one row per scrape execution)
 -- -------------------------------------------------------
 CREATE TABLE search_runs (
     run_id                      INT       AUTO_INCREMENT PRIMARY KEY,
     query_id                    CHAR(32)  NOT NULL,
+    batch_id                    INT       NOT NULL,
     search_engine_id            INT       NOT NULL,
     search_start_timestamp      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     search_completion_timestamp TIMESTAMP,
     FOREIGN KEY (query_id)         REFERENCES query_terms(query_id),
-    FOREIGN KEY (search_engine_id) REFERENCES search_engines(search_engine_id)
+    FOREIGN KEY (search_engine_id) REFERENCES search_engines(search_engine_id),
+    FOREIGN KEY (batch_id)         REFERENCES batch_runs(batch_id)
+
 );
 
 -- -------------------------------------------------------

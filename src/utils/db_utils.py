@@ -18,8 +18,43 @@ def _md5(text: str) -> str:
     """Matches MySQL's MD5() so Python-computed IDs align with generated columns."""
     return hashlib.md5(text.encode()).hexdigest()
 
+def start_batch_run() -> int:
+    """
+    Ensure query_term and engine exist, open a search_run row, return run_id.
+    search_start_timestamp is set automatically by MySQL DEFAULT CURRENT_TIMESTAMP.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO batch_runs (batch_start_timestamp) VALUES (NOW())"
+        )
+        conn.commit()
+        batch_id = cursor.lastrowid
+        print(f"[DB] Opened BATCH job ID: #{batch_id}")
+        return batch_id
+    finally:
+        cursor.close()
+        conn.close()
 
-def start_run(query: str, engine: str) -> int:
+
+def complete_batch_run(batch_id: int):
+    """Stamp search_completion_timestamp on the run row."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "UPDATE batch_runs SET batch_completion_timestamp = NOW() WHERE batch_id = %s",
+            (batch_id,)
+        )
+        conn.commit()
+        print(f"[DB] Closed BATCH run #{batch_id}")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def start_run(query: str, engine: str, batch_id: int) -> int:
     """
     Ensure query_term and engine exist, open a search_run row, return run_id.
     search_start_timestamp is set automatically by MySQL DEFAULT CURRENT_TIMESTAMP.
@@ -44,8 +79,8 @@ def start_run(query: str, engine: str) -> int:
         engine_id = row[0]
 
         cursor.execute(
-            "INSERT INTO search_runs (query_id, search_engine_id) VALUES (%s, %s)",
-            (query_id, engine_id)
+            "INSERT INTO search_runs (query_id, search_engine_id, batch_id) VALUES (%s, %s, %s)",
+            (query_id, engine_id, batch_id)
         )
         conn.commit()
         run_id = cursor.lastrowid
