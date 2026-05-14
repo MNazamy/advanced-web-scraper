@@ -1,14 +1,8 @@
-import time
-from pathlib import Path
-from urllib.parse import quote_plus
-
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
-_SCREENSHOT_DIR = Path(__file__).parent.parent / "screenshots"
 
-
-def _get_driver():
+def get_driver():
     opts = Options()
     opts.add_argument("--headless")
     opts.add_argument("--disable-gpu")
@@ -60,9 +54,6 @@ def _parse_bing(driver):
 
 
 def _parse_yahoo(driver):
-    # The <a> wraps the <h3>, not the other way around:
-    #   div.compTitle > a[href] > h3.title > span
-    # Same ancestor-walk pattern as Google.
     results = []
     for h3 in driver.find_elements("css selector", "h3.title"):
         title = h3.text.strip()
@@ -108,30 +99,3 @@ ENGINE_CONFIGS = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Generic search runner — shared browser lifecycle for every engine
-# ---------------------------------------------------------------------------
-
-def search(term: str, engine: str, run_id: int) -> list:
-    engine_config = ENGINE_CONFIGS[engine]
-    url = engine_config["url"].format(term=quote_plus(term))
-    driver = _get_driver()
-    results = []
-    try:
-        print(f"[Search] Loading: {url}")
-        driver.get(url)
-        time.sleep(4)
-
-        print(f"[Debug] Current URL : {driver.current_url}")
-        print(f"[Debug] Page title  : {driver.title}")
-
-        _SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
-        driver.save_screenshot(str(_SCREENSHOT_DIR / f"run_id_{run_id}.png"))
-
-        results = engine_config["parser_function"](driver)
-        print(f"[Debug] {engine} returned {len(results)} results")
-    except Exception as e:
-        print(f"[Search ERROR] {e}")
-    finally:
-        driver.quit()
-    return results

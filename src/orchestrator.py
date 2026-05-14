@@ -1,5 +1,5 @@
 from utils.constants import PREDEFINED_SEARCHES, SEARCH_ENGINES
-from utils.search_utils import search
+from search import search
 from utils.db_utils import start_run, complete_run, insert_results, start_batch_run, complete_batch_run
 
 if __name__ == "__main__":
