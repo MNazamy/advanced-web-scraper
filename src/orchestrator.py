@@ -1,4 +1,5 @@
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from utils.constants import PREDEFINED_SEARCHES, SEARCH_ENGINES
 from utils.sanitize_utils import sanitize_query
@@ -18,8 +19,9 @@ _SCREENSHOT_DIR = Path(__file__).parent.parent / "screenshots"
 
 def run_pipeline(term: str, engines=None, pages=2, topic_id=None, on_step=None) -> int:
     """
-    on_step(engine, substep, status) — engine is None for global steps,
+    on_step(engine, substep, status, detail) — engine is None for global steps,
     substep is None for engine-level status changes.
+    All engines run concurrently via ThreadPoolExecutor.
     """
     if engines is None:
         engines = SEARCH_ENGINES
@@ -28,15 +30,13 @@ def run_pipeline(term: str, engines=None, pages=2, topic_id=None, on_step=None) 
         if on_step:
             on_step(engine, substep, status, detail)
 
-    _s(None, "sanitize", "running")
     sanitized_term = sanitize_query(term)
     print(f"Query     : {term}")
     print(f"Sanitized : {sanitized_term}\n")
-    _s(None, "sanitize", "done")
 
     batch_id = start_batch_run(topic_id=topic_id)
 
-    for engine in engines:
+    def _run_engine(engine):
         engine_pages = pages[engine] if isinstance(pages, dict) else pages
         _s(engine, None, "running")
 
@@ -79,6 +79,16 @@ def run_pipeline(term: str, engines=None, pages=2, topic_id=None, on_step=None) 
         _s(engine, "store", "done", f"{len(clean_results)} stored")
 
         _s(engine, None, "done")
+
+    with ThreadPoolExecutor(max_workers=len(engines)) as executor:
+        futures = {executor.submit(_run_engine, engine): engine for engine in engines}
+        for future in as_completed(futures):
+            engine = futures[future]
+            try:
+                future.result()
+            except Exception as e:
+                print(f"[{engine}] PIPELINE ERROR: {e}")
+                _s(engine, None, "error", str(e))
 
     complete_batch_run(batch_id)
     return batch_id

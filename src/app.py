@@ -24,7 +24,7 @@ _SUBSTEP_DEFS = [
 
 
 def _make_steps(engines: list) -> list:
-    steps = [{"id": "sanitize", "label": "Sanitize query", "status": "pending"}]
+    steps = []
     for e in engines:
         steps.append({
             "id": e,
