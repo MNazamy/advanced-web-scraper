@@ -107,6 +107,26 @@ def complete_run(run_id: int):
         conn.close()
 
 
+def insert_frequencies(run_id: int, freq_data: list):
+    """Store per-token frequency counts from frequency_analyzer.analyze()."""
+    if not freq_data:
+        return
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        for row in freq_data:
+            cursor.execute(
+                "INSERT IGNORE INTO term_frequencies (run_id, result_id, term_token, frequency) "
+                "VALUES (%s, %s, %s, %s)",
+                (run_id, row["result_id"], row["token"], row["frequency"])
+            )
+        conn.commit()
+        print(f"[DB] Inserted {len(freq_data)} frequency records for run #{run_id}")
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def insert_results(run_id: int, results: list):
     """
     Write scraped results to search_results (deduplicated by URL hash) and

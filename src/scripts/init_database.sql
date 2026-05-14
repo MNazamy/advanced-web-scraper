@@ -77,3 +77,18 @@ CREATE TABLE run_results (
     FOREIGN KEY (run_id)    REFERENCES search_runs(run_id),
     FOREIGN KEY (result_id) REFERENCES search_results(result_id)
 );
+
+-- -------------------------------------------------------
+-- term_frequencies
+-- Per (run, result, token) count of how many times each
+-- sanitized search term token appears in the result URL.
+-- -------------------------------------------------------
+CREATE TABLE term_frequencies (
+    run_id      INT          NOT NULL,
+    result_id   CHAR(32)     NOT NULL,
+    term_token  VARCHAR(200) NOT NULL,
+    frequency   INT          NOT NULL DEFAULT 0,
+    PRIMARY KEY (run_id, result_id, term_token),
+    FOREIGN KEY (run_id)    REFERENCES search_runs(run_id),
+    FOREIGN KEY (result_id) REFERENCES search_results(result_id)
+);
